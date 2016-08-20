@@ -1,0 +1,208 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+### Custom Functions
+```{r}
+#Function that filters particular columns for NA values
+completeFun <- function(data, desiredCols) {
+  completeVec <- complete.cases(data[, desiredCols])
+  return(data[completeVec, ])
+}
+
+```
+
+* * *
+
+## Part 1: Data
+BRFSS conducts both landline and cellular telephone-based surveys. In conducting the BRFSS landline telephone survey, interviewers collect data from a randomly selected adult in a household. This data collected is therefore from a random sample of people, and we can infer generalizability  in the following studies.
+In conducting the cellular telephone version though, the data is from an adult who offers to participate, therefore these results might not be generalizable.
+All data used in this document will be from the telephone surveys.  
+Variables with more than 20% percent missing values will not be used.  
+There was no random assignment used while conducting the interviews, therefore the results of our analysis will not be causal.
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**  
+Does amount of sleep affect the Body Mass Index?  
+Lets have insight on the notion that lack of sleep leads to weight gain.
+
+**Research quesion 2:**  
+Does income affect how healthy one is?  
+People of different financial status eat differently. Does this show in their health?
+
+**Research quesion 3:**  
+Are single people more likely to rent than own a home?  
+Priorities are different for people in and out of relationships respectively. Lets see if the data supports this claim.  
+
+**Research question 4:**  
+Does income level dictate whether people own or rent a home?  
+Homes are costly. Lets see if there is a relationship between one's income and their propensity to own/rent a home.  
+
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+
+**Research quesion 1:**  
+Lets find out if there is a relationship between sleep and BMI. We'll start by exploring the variable for number of hours slept in a day: sleptim1.  
+
+```{r}
+#Summary statistics of sleep variable
+summary(brfss2013$sleptim1)
+```
+```{r}
+#distribution of sleep variable
+ggplot(brfss2013, aes(x = sleptim1)) + geom_histogram(binwidth = 1, na.rm = TRUE)
+```  
+
+It seems there are extraneous values of sleep per day above 24 hours that are decreasing the x scale. Lets filter these out and then plot the histogram.
+```{r}
+ggplot(brfss2013[brfss2013$sleptim1 < 25,], aes(x = sleptim1)) + geom_histogram(binwidth = 1, na.rm = TRUE)
+```  
+
+The distribution is normal with people getting an average of 7 hours of sleep, which is about the recommended amount of time for healthy sleep.  
+Lets now check the statistics on people's Body Mass Index (BMI). The numerical values for BMI are stored in 'X_bmi5' and the categorical data is in X-bmi5cat.  
+
+```{r}
+#summary statistics
+#Note: There are two implied decimal places in bmi numerical data according to documentation
+#Multiplied by 0.01 to get actual values
+summary(brfss2013$X_bmi5*0.01)
+```
+ 
+```{r}
+#bmi categorical data variable: X_bmi5cat
+#population of bmi categories
+brfss2013 %>%
+  group_by(X_bmi5cat) %>%
+  summarise(number_of_people = n()) %>%
+  ggplot(aes(x = X_bmi5cat, y = number_of_people)) + geom_bar(stat = 'identity')
+```  
+
+BMI is categorized as follows;  
+Underweight: BMI is less than 18.5.  
+Normal weight: BMI is 18.5 to 24.9.  
+Overweight: BMI is 25 to 29.9.  
+Obese: BMI is 30 or more. (Cancer.org: Normal weight ranges: Body mass index (BMI))  
+The average BMI of participants is just above the normal bmi upper limit. The distribution is also right-skewed which means there is a significant number of obese people.  
+  
+Now to see the relationship between number of hours slept and BMI. We will use number of hours slept as a categorical variable and plot the median BMI of people against each hour.
+```{r}
+#making factor variable of sleep
+brfss2013 <- brfss2013 %>%
+  mutate(sleepcat = as.factor(sleptim1))
+```
+
+```{r}
+#bmi categories against slept hours
+ggplot(brfss2013[brfss2013$sleptim1 < 25,], aes(x = sleepcat, fill = X_bmi5cat)) + geom_bar(position = 'fill')
+```  
+
+Proportion of normal weight bmi is highest in the hours of 7-9 but there is a general decrease on either side. This seems to associate with an increase of obesity proportion on either side of 7-9 hours. The overweight bmi seems to stay constant over the hours though.  
+This graph shows BMI and number of hours slept are associated.  
+
+
+**Research question 2**  
+In developed countries, unlike in developing countries surprisingly enough, healthy food is generally more expensive than the unhealthy(junk) food. We would then expect the richer people who can afford healthy food to be in shape and the opposite for the poorer people.  
+Lets see if the data can show this relationship.  
+**Note:** Our gauge for health will be the BMI.  
+
+Summary statistics for the income and bmi:  
+
+```{r}
+brfss2013 %>%
+  select(income2, X_bmi5) %>%
+  summary()
+```  
+
+Distribution of income  
+
+```{r}
+completeFun(brfss2013, 'income2') %>%
+  group_by(income2) %>%
+  summarise( count = n()) %>%
+  ggplot( aes( x = income2, y = count)) + geom_bar(stat = 'identity') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```  
+
+Majority of people earn above $25,000 a year!  
+
+Mean BMI vs Income  
+
+```{r}
+completeFun(brfss2013, c('X_bmi5','income2')) %>%
+  group_by(income2) %>%
+  summarise(mean_bmi = mean(X_bmi5)) %>%
+  ggplot( aes( x = income2, y = mean_bmi*0.01)) + geom_bar(stat = 'identity') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```  
+
+The BMI is very evenly spread across the income categories, but there is a constant gradual decrease of mean BMI from <$10,000 to >$75,000. The difference is not very significant but we can say richer people are healthier in general.  
+
+
+**Research question 3**  
+Single people donot have as many obligations as those in relationships, and this lifestyle leads us to believe people in relationships are less likely to invest in buying a home.  
+
+Distribution of marital status variable:  
+
+```{r}
+brfss2013 %>%
+  group_by(marital) %>%
+  summarise( count = n()) %>%
+  ggplot( aes( x = marital, y = count)) + geom_bar(stat = 'identity') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```  
+
+Most participants are married.  
+
+Distribution of home ownership:  
+
+```{r}
+brfss2013 %>%
+  group_by(renthom1) %>%
+  summarise( count = n()) %>%
+  ggplot( aes( x = renthom1, y = count)) + geom_bar(stat = 'identity') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```  
+
+Stacked bar plot of home ownership against marital status:  
+
+```{r}
+ggplot(completeFun(brfss2013, 'renthom1'), aes(x = renthom1, fill = marital)) + geom_bar(position = 'fill')
+```    
+
+Home ownership is largely by married folks according to this graph, and the renters are predominantly those not in a relationship.  
+Generally, home owners are married while renters are not.  
+
+**Research question: 4**  
+Buying a home is a costly investment. People with low incomes are more inclined to rent a house rather than spend so much money on ownership. Lets see if the richer people tend to own houses more than the poorer folks.  
+
+Plot of home ownership against income  
+
+```{r}
+ggplot(completeFun(brfss2013, 'income2'), aes(x = income2, fill = renthom1)) + geom_bar(position = 'fill') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```  
+
+There is a clear increase in home ownership in categories of higher incomes while renting increases with decrease in income. This shows a significant association between income and house renting/ownership.

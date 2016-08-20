@@ -1,0 +1,234 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+The target population of the GSS is adults (18+) living in households in the United States. The GSS sample is drawn using an area probability design that randomly selects respondents in households across the United States to take part in the survey. Respondents that become part of the GSS sample are from a mix of urban, suburban, and rural geographic areas. Participation in the study is strictly voluntary. However, because only about a few thousand respondents are interviewed in the main study, every respondent selected is very important to the results. (https://en.wikipedia.org/wiki/General_Social_Survey)  
+**Generalizability**
+Since the samples taken were random, we can generalize our results to the entire US population.  
+**Causation**
+There was no experimental design used in the survey; this data is just observational. Therefore we can not show causation in our results.
+
+* * *
+
+## Part 2: Research question
+
+**Has support for adult same sex relations increased over years since 1972?**
+
+Same sex relationships have been a controversial topic for so long. And in recent years, same sex couples have had landmark decisions go their way, like legalisation of same sex marriages in many American states.
+This analysis is about finding out if there has been a shift in opinion of majority of US residents about this topic.
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+
+Our variables of interest for the research question are *homosex* and *year*. Lets create a subset of the *gss* with just these variables.
+```{r}
+myGss <- gss[,c('homosex','year')]
+```
+Lets do univariate analysis of these variables;
+
+### homosex
+
+```{r}
+#summary statistics
+summary(myGss$homosex)
+```
+The respondents were asked, "**What is your opinion about sexual relations between two adults of the same sex?**" The answers were labelled as "always wrong", "almost always wrong", "sometimes wrong", "not wrong at all", "other", or missing. Those who answered with "don't know" or whose answers were inapplicable were recorded as missing.
+This is a categorical variable. There are quite a number of missing values, but we have three thousand more observations to work with. Plus, this is spread out over many years, so the percentage of NA values will be lower within groups.
+We cannot infer useful information from these NA values, so we'll omit them from now on.
+```{r}
+#histogram of homosex
+ggplot(na.omit(myGss), aes(x=homosex)) + geom_bar()
+```
+Cumulatively, the answer "always wrong" has been recorded the most followed by "not wrong at all". Two very differing opinions.
+
+### year
+The next variable of interest is *year*, which is recorded as numerical but we will coarse it into a categorical variable and use it to see if opinion has changed over time.
+```{r}
+#nature of the variable
+str(myGss$year)
+#summary of years
+summary(myGss$year)
+```
+
+Lets visualize the counts of opinion on same sex relations from 1972 to 2012
+
+```{r}
+#proportion of each answer to question for different years
+ggplot(na.omit(myGss), aes(x = year, fill = homosex)) + geom_bar(position = 'fill') + ylab('proportion')
+```
+
+We can see an increase in prominence for the answer "not wrong at all" from 1972 to recent years. Is this increase significant though? Lets find out!
+
+* * *
+
+## Part 4: Inference
+
+We are going to test if the proportion of people that said 'not wrong at all' has increased since 1973(there is no data for 1972). Since there is a general increase of this proportion since 1973 as seen in the graph above, let us use 1973 and 2012 as the populations of interest.  
+**NB**: Whenever proportion is used ambiguously from here on, it refers to proportion of people that said 'not wrong at all' to the question on same sex relations.
+
+### Create new data
+
+Our approach is best suited for a two by two contigency table of people that said "not wrong at all" and those who did not say that, in the years 1973 and 2012.
+Lets create a new dataframe for this
+```{r}
+#add new variable homosex2 to new datafame myNewGss
+myNewGss <- myGss %>%
+  mutate(homosex2 = ifelse(homosex == 'Not Wrong At All', 'Not Wrong At All', 'Wrong'))
+```
+
+```{r}
+#structure of myNewGss
+str(myNewGss)
+#remove original homosex column and leave homosex2
+myNewGss <- myNewGss[,2:3]
+#turn homosex2 into factor data type
+myNewGss$homosex2 <- as.factor(myNewGss$homosex2)
+#rename homosex2 to homosex
+names(myNewGss) <- c('year','homosex')
+#remove missing values and keep only 1973 and 2012
+myNewGss <- myNewGss%>%
+  filter(!is.na(homosex))%>%
+  filter(year==1973 | year==2012)
+#structure of myNewGss
+str(myNewGss)
+```
+
+
+### Confidence intervals
+
+How confident are we of the popualtion proportion given our samples(1972 and 2012)? 
+First, we check that our samples are nearly normal.
+<ol>
+<li> Respondents were randomly sampled, and sample size is less than 10% of US population therefore sample observations are independent
+<li> Success-failure conditions
+```{r}
+#number of respondents for each answer in 1973
+myNewGss%>%
+  filter(year==1973)%>%
+  group_by(homosex)%>%
+  summarise(count = n())
+```
+```{r}
+#number of respondents for each answer in 2012
+myNewGss%>%
+  filter(year==2012)%>%
+  group_by(homosex)%>%
+  summarise(count = n())
+```
+Number of successes (said 'Not wrong at all') and number of failures (said otherwise) are both above 10.
+</ol>
+Since these conditions are met, the sample distributions are nearly normal.
+
+We shall use the inference function to calculate the 95% confidence interval of the proportion of people that said 'not wrong at all' in entire the US population.
+
+```{r}
+#For 1973
+myGss1973 <-myNewGss%>%
+  filter(year==1973)
+
+inference(y = homosex, data = myGss1973, type = 'ci', statistic = 'proportion', success = 'Not Wrong At All', method = 'theoretical')
+```  
+
+We are 95% confident that the proportion of people in the US that answered "Not wrong at all" to the question of what they think about same sex relations in 1973 is between 9.37% to 12.59%
+
+```{r}
+#For 2012
+myGss2012 <- myNewGss%>%
+  filter(year==2012)
+
+inference(y = homosex, data = myGss2012, type = 'ci', statistic = 'proportion', success = 'Not Wrong At All', method = 'theoretical')
+```  
+
+We are 95% confident that the proportion of people in the US that answered "Not wrong at all" to the question of what they think about same sex relations in 2012 is between 41.86% and 47.4%
+
+### Hypothesis Test
+
+Our null hypothesis is that there has not been a change in proportion of people that said 'not wrong at all' to same sex relations in the entire nation in 1973 and 2012.
+
+$p_{1973}$-$p_{2012}$ = 0
+
+The alternative hypothesis is that there has been an increase in proportions between 1973 and 2012.
+
+$p_{1973}$-$p_{2012}$ < 0
+
+Can we use the normal model to analyse this survey?
+<ol>
+<li> Firstly, because observations from both studies were random and less than 10% of the population, we will treat them as independent.
+<li> Secondly, To check the success-failure condition, we must use the pooled proportion
+
+$\widehat{p}$ = $\frac{Number Of People who Said Not Wrong At All}{Total Number of People}$
+
+```{r}
+myNewGss%>%
+  group_by(homosex)%>%
+  summarise(count = n())
+```
+
+$\widehat{p}$ = $\frac{712}{2687}$
+
+$\widehat{p}$ = 0.2649795
+
+**Success - Failure check**
+```{r}
+myNewGss%>%
+  filter(year==2012)%>%
+  summarise(count = n())
+```
+```{r}
+myNewGss%>%
+  filter(year==1973)%>%
+  summarise(count = n())
+```
+
+$\widehat{p}$ x $n_{1973}$ = 0.2649795 x 1448 = 383.6903 
+$\widehat{p}$ x $n_{2012}$ = 0.2649795 x 1239 = 328.3096  
+(1 - $\widehat{p}$ x $n_{1973}$) = 0.7350205 x 1448 = 1064.31 
+(1 - $\widehat{p}$ x $n_{2012}$) = 0.7350205 x 1239 = 910.6904 
+
+The success-failure condition is satisfied since all values are at least 10, and we can safely apply the normal model.
+</ol>
+
+Using the inference function to test the hypothesis;
+
+$H_0$: $p_{1973}$ - $p_{2012}$ = 0
+
+$H_A$: $p_{1973}$ - $p_{2012}$ < 0
+
+
+```{r}
+inference(y = homosex, x = year, data = myNewGss, statistic = 'proportion', type = 'ht', null = 0, alternative = 'less', method = 'theoretical', success = 'Not Wrong At All' )
+```
+
+
+Using the normal model for this test statistic, we identify the lower tail area to be 0.0001 which less than 0.05, therefore we reject the null hypothesis.  
+That is, we have statistically significant evidence that the proportion of people with the opinion that same sex relations among adults is not wrong at all has increased since 1973.
