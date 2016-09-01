@@ -169,11 +169,13 @@ myGss2012 <- myNewGss%>%
 inference(y = homosex, data = myGss2012, type = 'ci', statistic = 'proportion', success = 'Not Wrong At All', method = 'theoretical')
 ```  
 
-We are 95% confident that the proportion of people in the US that answered "Not wrong at all" to the question of what they think about same sex relations in 2012 is between 41.86% and 47.4%
+We are 95% confident that the proportion of people in the US that answered "Not wrong at all" to the question of what they think about same sex relations in 2012 is between 41.86% and 47.4%  
+We can infer at least a minimum difference in proportions of (41.86 - 12.59) = 29.27% in the entire US population between 1973 and 2012 of people that said same sex relations were not wrong at all.
 
 ### Hypothesis Test
 
-Our null hypothesis is that there has not been a change in proportion of people that said 'not wrong at all' to same sex relations in the entire nation in 1973 and 2012.
+This will be a theoretical approach to testing difference of two proportions.  
+Our null hypothesis is that there has not been a change in proportion of people that said 'not wrong at all' to same sex relations in the entire nation in 1973 and 2012.  
 
 $p_{1973}$-$p_{2012}$ = 0
 
@@ -183,7 +185,7 @@ $p_{1973}$-$p_{2012}$ < 0
 
 Can we use the normal model to analyse this survey?
 <ol>
-<li> Firstly, because observations from both studies were random and less than 10% of the population, we will treat them as independent.
+<li> Firstly, because observations from both samples were random and less than 10% of the population, we will treat them as independent.
 <li> Secondly, To check the success-failure condition, we must use the pooled proportion
 
 $\widehat{p}$ = $\frac{Number Of People who Said Not Wrong At All}{Total Number of People}$
@@ -218,7 +220,7 @@ $\widehat{p}$ x $n_{2012}$ = 0.2649795 x 1239 = 328.3096
 The success-failure condition is satisfied since all values are at least 10, and we can safely apply the normal model.
 </ol>
 
-Using the inference function to test the hypothesis;
+Using the inference function to test the hypothesis at 0.05 significance level;
 
 $H_0$: $p_{1973}$ - $p_{2012}$ = 0
 
@@ -231,4 +233,8 @@ inference(y = homosex, x = year, data = myNewGss, statistic = 'proportion', type
 
 
 Using the normal model for this test statistic, we identify the lower tail area to be 0.0001 which less than 0.05, therefore we reject the null hypothesis.  
-That is, we have statistically significant evidence that the proportion of people with the opinion that same sex relations among adults is not wrong at all has increased since 1973.
+That is, we have statistically significant evidence that the proportion of people with the opinion that same sex relations among adults is not wrong at all has increased since 1973. 
+
+### Conclusion
+The hypothesis test and confidence intervals agree in that there was a clear difference in proportions between 1973 and 2012.  
+Given the large number of missing values, it seems many people were not willing to answer the question. The results would be more precise if we had more observations to work with. Maybe more anonymous ways of answering this question can be made available in future surveys.
